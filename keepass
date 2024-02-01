@@ -5,6 +5,8 @@ FILE_LOCATION="/home/pgrison/temp/"
 FILENAME="database.kdbx"
 CURRENT_PATH=$(pwd)
 
+VERIFICATION_URL="https://www.google.com/device"
+
 # Easier to work in the directory of the file
 cd $FILE_LOCATION
 
@@ -28,25 +30,39 @@ then
     # Check the sha1 of both files. If there is any differences, it means that modifications have been made and shall be uploaded
     if [ "$(<$FILENAME sha1sum)" != "$(<$FILENAME.saved sha1sum)" ]
     then
-	echo "Update remote kee file with the local one"
-        # Upload the file in the Drive thanks to Google Drive API
-	curl -X POST -L \
-		-H "Authorization: Bearer ya29.***REMOVED***-wZGqTuv8f1dGwU0wmFrbfjjogMeWBxjcdVERf20mYEoEDunkf1mMCKgUc16M_LCEaCgYKATYSARESFQHWtWOmsTCy9rGFkbsnCXPslAAkhA0163" \
-		-F "metadata={name :'$FILENAME'};type=application/json;charset=UTF-8" \
-		-F "file=@$FILENAME;type=application/file" \
-		"https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart" > /dev/null
-	if [ $? -eq 0 ]
-	then
-	    echo "$FILENAME uploaded successfully."
-	else
-	    echo "$FILENAME failed to be uploaded due to a wrong curl usage." >&2
-	    exit -2
-	fi
+        echo "Update remote kee file with the local one"
+
+        # Get the Google API information according to our Client ID
+        response=$(curl -d "client_id=$CLIENT_ID&scope=https://www.googleapis.com/auth/drive.file" https://oauth2.googleapis.com/device/code)
+        device_code=$(echo $response | grep '"device_code":' | cut -d',' -f1 | cut -d':' -f2 | cut -d'"' -f2)
+        user_code=$(echo $response | grep '"user_code":' | cut -d',' -f2 | cut -d':' -f2 | cut -d'"' -f2)
+
+        echo "Please, open $VERIFICATION_URL, enter the following code : $user_code and follow instructions to grant the relevant permission to upload your file."
+        echo "When finish, press ENTER."
+        read 
+
+        # Get Bearer Code
+        response=$(curl -d client_id=$CLIENT_ID -d client_secret=$CLIENT_SECRET -d device_code=$device_code -d grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code https://accounts.google.com/o/oauth2/token)
+        access_token=$(echo $response | grep '"access_token"' | cut -d':' -f2 | cut -d',' -f1 | cut -d'"' -f2)
+
+        # Upload the file in your Drive thanks to Google Drive API
+    	curl -X POST -L \
+		    -H "Authorization: Bearer $access_token" \
+		    -F "metadata={name :'$FILENAME'};type=application/json;charset=UTF-8" \
+		    -F "file=@$FILENAME;type=application/file" \
+    		"https://www.googleapis.com/upload/drive/v3/files?uploadType=media" > /dev/null
+	    if [ $? -eq 0 ]
+	    then
+	        echo "$FILENAME uploaded successfully."
+	    else
+	        echo "$FILENAME failed to be uploaded due to a wrong authentication process." >&2
+	        exit -2
+	    fi
     else
-	echo "$FILENAME will not be uploaded as it has not been modified."
+	    echo "$FILENAME will not be uploaded as it has not been modified."
     fi
     # Delete both files
-    rm $FILENAME.saved
+    rm $FILENAME.saved $FILENAME
     
     # Set back to the previous path
     cd $CURRENT_PATH
