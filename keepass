@@ -1,15 +1,20 @@
 #!/bin/bash
 
 FILE_LOCATION="/home/pgrison/temp/"
-FILENAME="kee.kdbx"
-
+#FILENAME="kee.kdbx"
+FILENAME="database.kdbx"
 CURRENT_PATH=$(pwd)
 
 # Easier to work in the directory of the file
 cd $FILE_LOCATION
 
+# Delete previous file just in case
+if [[ -f $FILENAME ]]; then
+    rm $FILENAME > /dev/null
+fi
+
 # Overload the keepass2 executable to download the kee.kdbx from the Drive
-wget -O $FILENAME "https://drive.google.com/uc?export=download&id=1X93Bq8Lujf000OKiW5TzdgdnQdqomSK3" > /dev/null
+wget -O $FILENAME --no-check-certificate "$KEEPASS_DB_URL" > /dev/null
 
 # Check if it has been correctly downloaded
 if [ $? -eq 0 ]
@@ -18,11 +23,12 @@ then
     cp $FILENAME $FILENAME.saved
     
     # Run the keepass2 executable
-    keepass2 $FILENAME
+    keepass2 "$FILENAME" -pw:"$KEEPASS_DB_PWD"
 
     # Check the sha1 of both files. If there is any differences, it means that modifications have been made and shall be uploaded
     if [ "$(<$FILENAME sha1sum)" != "$(<$FILENAME.saved sha1sum)" ]
     then
+	echo "Update remote kee file with the local one"
         # Upload the file in the Drive thanks to Google Drive API
 	curl -X POST -L \
 		-H "Authorization: Bearer ya29.***REMOVED***-wZGqTuv8f1dGwU0wmFrbfjjogMeWBxjcdVERf20mYEoEDunkf1mMCKgUc16M_LCEaCgYKATYSARESFQHWtWOmsTCy9rGFkbsnCXPslAAkhA0163" \
@@ -40,7 +46,6 @@ then
 	echo "$FILENAME will not be uploaded as it has not been modified."
     fi
     # Delete both files
-    rm $FILENAME
     rm $FILENAME.saved
     
     # Set back to the previous path
