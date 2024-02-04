@@ -7,8 +7,9 @@ When exiting, it will check if there is any differences between the remote and t
 
 ## Prerequisites
 1. Having keepass [Get it here](https://keepass.info/index.html)
-2. `curl` installed
-3. Credentials created ("OAuth client ID" - "TVs and Limited Input devices") from [Google Cloud Platform](https://console.cloud.google.com/apis/credentials)
+2. Yes, having a Google account could help here
+3. `curl` installed
+4. Credentials created ("OAuth client ID" - "TVs and Limited Input devices") from [Google Cloud Platform](https://console.cloud.google.com/apis/credentials)
    This step allows you to get your CLIENT_ID and CLIENT_SECRET
 
 ## Installation
