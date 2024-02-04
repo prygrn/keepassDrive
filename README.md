@@ -27,5 +27,7 @@ When exiting, it will check if there is any differences between the remote and t
 For security reasons, we used OAuth 2.0 with Limited Input Devices. Indeed, the [allowed scopes](https://developers.google.com/identity/protocols/oauth2/limited-input-device?hl=en#allowedscopes) of this type of client ID for the Google Drive API are:
 * https://www.googleapis.com/auth/drive.appdata
 * https://www.googleapis.com/auth/drive.file
+
 from [Google Drive API documentation](https://developers.google.com/drive/api/guides/api-specific-auth?hl=en=)
-Thus, we can only update files that have already been created throughout this application... But the application, as-in, is not able to do that. We need to modify the script by hand to first create a new file with a new fresh ID and then uses this file as the one we previously wanted to update. Ayyy, sure... Kind a bit commplicated but shall be improved afterward to include this situation.
+
+Thus, we can only update files that have already been created throughout this application... But the application, as-in, is not able to create a new one from scratch. We need to modify the script by hand to first create a new file with a new fresh ID and then uses this file as the one we previously wanted to update. Ayyy, sure... Kind a bit commplicated but shall be improved afterward to include this situation.
