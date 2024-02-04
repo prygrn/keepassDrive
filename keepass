@@ -2,10 +2,16 @@
 
 FILE_LOCATION="/home/pgrison/temp/"
 #FILENAME="kee.kdbx"
-FILENAME="database.kdbx"
+FILENAME="Database.kdbx"
 CURRENT_PATH=$(pwd)
 
 VERIFICATION_URL="https://www.google.com/device"
+AUTH_SCOPE=https://www.googleapis.com/auth/drive.file
+OAUTH_ENDPOINT=https://oauth2.googleapis.com/device/code
+EXPORT_URI=https://www.googleapis.com/drive/v3/files
+IMPORT_URI=https://www.googleapis.com/upload/drive/v3/files
+
+REMOTE_FILE_ID=$(echo $KEEPASS_DB_URL | cut -d'=' -f3)
 
 # Easier to work in the directory of the file
 cd $FILE_LOCATION
@@ -15,8 +21,23 @@ if [[ -f $FILENAME ]]; then
     rm $FILENAME > /dev/null
 fi
 
-# Overload the keepass2 executable to download the kee.kdbx from the Drive
-wget -O $FILENAME --no-check-certificate "$KEEPASS_DB_URL" > /dev/null
+### AUTHENTICATION  ###
+# Get the Google OAuth information
+response=$(curl -s -d "client_id=$CLIENT_ID&scope=$AUTH_SCOPE" $OAUTH_ENDPOINT)
+DEVICE_CODE=$(echo $response | grep '"device_code":' | cut -d',' -f1 | cut -d':' -f2 | cut -d'"' -f2)
+USER_CODE=$(echo $response | grep '"user_code":' | cut -d',' -f2 | cut -d':' -f2 | cut -d'"' -f2)
+
+echo "Please, open $VERIFICATION_URL, enter the following code : $USER_CODE and follow instructions to grant the relevant permission to upload your file."
+echo "When finish, press ENTER."
+read 
+
+# Get Bearer Code according to the passed OAuth information
+response=$(curl -s -d client_id=$CLIENT_ID -d client_secret=$CLIENT_SECRET -d device_code=$DEVICE_CODE -d grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code https://accounts.google.com/o/oauth2/token)
+ACCESS_TOKEN=$(echo $response | grep '"access_token"' | cut -d':' -f2 | cut -d',' -f1 | cut -d'"' -f2)
+### END OF AUTHENTICATION ###
+
+# Download the database from the Drive
+curl -s -X GET -L -H "Authorization: Bearer $ACCESS_TOKEN" "$EXPORT_URI/$REMOTE_FILE_ID?alt=media" >> $FILENAME
 
 # Check if it has been correctly downloaded
 if [ $? -eq 0 ]
@@ -30,32 +51,20 @@ then
     # Check the sha1 of both files. If there is any differences, it means that modifications have been made and shall be uploaded
     if [ "$(<$FILENAME sha1sum)" != "$(<$FILENAME.saved sha1sum)" ]
     then
-        echo "Update remote kee file with the local one"
+        echo "Updating remote kee file with the local one..."
 
-        # Get the Google API information according to our Client ID
-        response=$(curl -d "client_id=$CLIENT_ID&scope=https://www.googleapis.com/auth/drive.file" https://oauth2.googleapis.com/device/code)
-        device_code=$(echo $response | grep '"device_code":' | cut -d',' -f1 | cut -d':' -f2 | cut -d'"' -f2)
-        user_code=$(echo $response | grep '"user_code":' | cut -d',' -f2 | cut -d':' -f2 | cut -d'"' -f2)
-
-        echo "Please, open $VERIFICATION_URL, enter the following code : $user_code and follow instructions to grant the relevant permission to upload your file."
-        echo "When finish, press ENTER."
-        read 
-
-        # Get Bearer Code
-        response=$(curl -d client_id=$CLIENT_ID -d client_secret=$CLIENT_SECRET -d device_code=$device_code -d grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code https://accounts.google.com/o/oauth2/token)
-        access_token=$(echo $response | grep '"access_token"' | cut -d':' -f2 | cut -d',' -f1 | cut -d'"' -f2)
-
-        # Upload the file in your Drive thanks to Google Drive API
-    	curl -X POST -L \
-		    -H "Authorization: Bearer $access_token" \
+        # Update the database in the Drive
+    	curl -s -X PATCH -L \
+		    -H "Authorization: Bearer $ACCESS_TOKEN" \
 		    -F "metadata={name :'$FILENAME'};type=application/json;charset=UTF-8" \
-		    -F "file=@$FILENAME;type=application/file" \
-    		"https://www.googleapis.com/upload/drive/v3/files?uploadType=media" > /dev/null
+		    -F "file=@$FILENAME;type=application/octet-stream;" \
+    		"$IMPORT_URI/$REMOTE_FILE_ID?uploadType=multipart" > /dev/null
+
 	    if [ $? -eq 0 ]
 	    then
 	        echo "$FILENAME uploaded successfully."
 	    else
-	        echo "$FILENAME failed to be uploaded due to a wrong authentication process." >&2
+	        echo "$FILENAME failed to be uploaded due to a wrong usage of HTTP PATCH. Check logs." >&2
 	        exit -2
 	    fi
     else
