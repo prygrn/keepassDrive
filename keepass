@@ -39,6 +39,7 @@ ACCESS_TOKEN=$(echo $response | grep '"access_token"' | cut -d':' -f2 | cut -d',
 
 # Download the database from the Drive through Google Drive API
 curl -s -X GET -L -H "Authorization: Bearer $ACCESS_TOKEN" "$EXPORT_URI/$REMOTE_FILE_ID?alt=media" >> $FILENAME
+echo "$FILENAME downloaded successfully"
 
 # Check if it has been correctly downloaded
 if [ $? -eq 0 ]
