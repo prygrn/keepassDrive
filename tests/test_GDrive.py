@@ -3,9 +3,11 @@ import pytest
 import GDrive
 import json
 
+
 @pytest.fixture
 def correct_secrets():
     return str(Path("client_secrets.json"))
+
 
 def test___init__(correct_secrets):
     # Pre-test : Deletion of the token file
@@ -35,10 +37,3 @@ def test___init__(correct_secrets):
     with open(str(token), "r") as token_file:
         decoded_token_file = json.load(token_file)
     assert decoded_token_file["expiry"] != "None"
-
-def test_get_file():
-    pass
-
-
-def test_get_files():
-    pass

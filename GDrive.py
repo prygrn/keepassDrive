@@ -1,14 +1,16 @@
 import logging
+import io
 from pathlib import Path
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseDownload
 
 # When the scope is changed, the self._token file shall be deleted
 # TODO : Be able to change the scope in runtime if the file does not exist
-SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 TOKEN_PATH = "./token.json"
 LOGGER = logging.getLogger(__name__)
@@ -30,10 +32,17 @@ class TokenFileInvalid(Exception):
     pass
 
 
+class DriveIsEmpty(Exception):
+    """
+    Raised when the given Google Drive is empty
+    """
+
+
 class GDrive:
     _secrets = Path()
     _token = Path(TOKEN_PATH)
     _credentials = None
+    _files = list(dict())
 
     def __init__(self, secrets_file=None) -> None:
         logging.basicConfig(
@@ -42,17 +51,20 @@ class GDrive:
             level=logging.INFO,
         )
 
-        self._secrets = secrets_file
-        # The file self._token stores the user's access and refresh tokens and is created
-        # automatically when the authorization flow completes for the first time.
+        if secrets_file is not None:
+            self._secrets = Path(secrets_file)
+        # The file self._token stores the user's access and refresh tokens and
+        # is created automatically when the authorization flow completes for
+        # the first time.
         if Path(self._token).is_file():
-            LOGGER.info(f"{str(self._token)} file exists. Get credentials from it.")
+            LOGGER.info(
+                f"{str(self._token)} file exists. Get credentials from it.")
             try:
                 self._credentials = Credentials.from_authorized_user_file(
                     str(self._token), SCOPES
                 )
             except ValueError as error:
-                self._credentials = None # Let the user log in again
+                self._credentials = None  # Let the user log in again
 
         # If there are no (valid) self._credentials, let the user log in
         if not self._credentials or not self._credentials.valid:
@@ -66,13 +78,15 @@ class GDrive:
                 self._credentials.refresh(Request())
             # No token at all
             else:
-                LOGGER.info("Creating a new workflow as there are no token file")
-                # Check if there is any secret file to start the authentication workflow
+                LOGGER.info(
+                    "Creating a new workflow as there are no token file")
+                # Check if there is any secret file to start the authentication
+                # workflow
                 try:
                     flow = InstalledAppFlow.from_client_secrets_file(
                         str(self._secrets), SCOPES
                     )
-                except FileNotFoundError as error:
+                except (FileNotFoundError, IsADirectoryError) as error:
                     raise SecretFileNotFound("No secret file found")
 
                 self._credentials = flow.run_local_server(port=0)
@@ -81,8 +95,54 @@ class GDrive:
                 token.write(self._credentials.to_json())
             LOGGER.info("Succeeded to write a new token file")
 
-    def get_file(id):
-        pass
+    def download_file(self, file):
+        try:
+            service = build("drive", "v3", credentials=self._credentials)
+            request = service.files().get_media(fileId=file["id"])
+            binary = io.BytesIO()
+            downloader = MediaIoBaseDownload(binary, request)
+            done = False
+            while done is False:
+                status, done = downloader.next_chunk()
+            LOGGER.info(f"{file['name']} successfully downloaded")
 
-    def get_files():
-        pass
+        except HttpError as error:
+            LOGGER.exception(f"An Http Error occurred: {error}")
+
+        LOGGER.info(f"Save {file['name']} in progress")
+        with open(file["name"], "wb") as fd:
+            fd.write(binary.getvalue())
+
+        return binary.getvalue()
+
+    def list_files(self):
+        # TODO : Using pageToken and also using pageSize token in argument
+        # TODO : Try using some rules to filter search
+        try:
+            # Print out the 10 first files
+            service = build("drive", "v3", credentials=self._credentials)
+            response = service.files().list(
+                pageSize=10, fields="nextPageToken, files(id, name)"
+            ).execute()
+            self._files = response.get("files", [])
+            LOGGER.info(f"Get the {10} first files as below")
+            LOGGER.info("file id")
+            for item in self._files:
+                LOGGER.info(f"{item['id']} - {item['name']}")
+
+        except HttpError as error:
+            LOGGER.exception(f"An Http Error occurred: {error}")
+
+        return self._files
+
+    def get_file_by_id(self, id):
+        for file in self._files:
+            if id in file.values():
+                return file
+        return
+
+    def get_file_by_name(self, name):
+        for file in self._files:
+            if name in file.values():
+                return file
+        return
