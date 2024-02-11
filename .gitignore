@@ -1,6 +1,8 @@
 __*__
 .*/
 *.json
+*.log
+*.kdbx
 
 # Unignore .vscode
 !.vscode/
