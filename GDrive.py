@@ -38,6 +38,12 @@ class DriveIsEmpty(Exception):
     """
 
 
+class FileDownloadFailed(Exception):
+    """
+    Raised when a file has failed to be downloaded
+    """
+
+
 class GDrive:
     _secrets = Path()
     _token = Path(TOKEN_PATH)
@@ -96,6 +102,8 @@ class GDrive:
             LOGGER.info("Succeeded to write a new token file")
 
     def download_file(self, file):
+        file['is_downloaded'] = False
+
         try:
             service = build("drive", "v3", credentials=self._credentials)
             request = service.files().get_media(fileId=file["id"])
@@ -113,11 +121,12 @@ class GDrive:
         with open(file["name"], "wb") as fd:
             fd.write(binary.getvalue())
 
-        return binary.getvalue()
+        file['is_downloaded'] = True
+
+        return file
 
     def list_files(self):
         # TODO : Using pageToken and also using pageSize token in argument
-        # TODO : Try using some rules to filter search
         try:
             # Print out the 10 first files
             service = build("drive", "v3", credentials=self._credentials)
@@ -146,3 +155,32 @@ class GDrive:
             if name in file.values():
                 return file
         return
+
+    def search_file_by_name(self, name):
+        file = dict()
+        files = [dict]
+        page_token = None
+        try:
+            while True:
+                service = build("drive", "v3", credentials=self._credentials)
+                response = service.files().list(
+                    q=f"name='{name}'",
+                    spaces="drive",
+                    fields="nextPageToken, files(id, name)",
+                    pageToken=page_token
+                ).execute()
+                for file in response.get("files", []):
+                    if file['name'] == name:
+                        return file
+
+                files.extend(response.get("files", []))
+                page_token = response.get("nextPageToken", None)
+                if page_token is None:
+                    break
+
+        except HttpError as error:
+            print(f"An error occurred: {error}")
+            file = None
+
+        # None if not found
+        return file

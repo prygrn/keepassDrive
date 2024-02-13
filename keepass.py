@@ -1,29 +1,20 @@
-import secrets
 import sys
 import logging
+import subprocess
+from os import environ
 from pathlib import Path
-from GDrive import GDrive
+
+import GDrive
+import exceptions
 
 ARGUMENTS_NB = 3
 
 LOGGER = logging.getLogger(__name__)
 
 
-class WrongNumberOfArguments(Exception):
-    """
-    Raised when the module is not executed with the right number of arguments
-    """
-
-    pass
-
-
-class NoFileName(Exception):
-    """
-    Raised when the user wants to retrieve a file not in the Drive
-    """
-
-
 def main():
+    file = dict()
+    process = None
     current_directory = Path.cwd()
 
     logging.basicConfig(
@@ -41,17 +32,32 @@ def main():
                      - The name of the keepass database to be opened
                      - The path/to/the/secrets/file"""
         )
-        raise WrongNumberOfArguments("Invalid number of arguments")
+        raise exceptions.WrongNumberOfArguments("Invalid number of arguments")
 
     name = sys.argv[1]
-    drive = GDrive(secrets_file=sys.argv[2])
-    drive.list_files()
-    file = drive.get_file_by_name(sys.argv[1])
+    drive = GDrive.GDrive(secrets_file=sys.argv[2])
+    file = drive.search_file_by_name(name)
+    # file = drive.get_file_by_name(sys.argv[1])
     if file is not None:
-        print(file['id'])
         file = drive.download_file(file)
+        if not file["is_downloaded"]:
+            raise GDrive.FileDownloadFailed(
+                f"File {file} failed to be downloaded")
     else:
-        raise NoFileName(f"File {file['name']} unknown")
+        raise exceptions.NoFileName(
+            f"File {name} not found in the given Drive")
+
+    env = environ.copy()
+    #  Execute the keepass app
+    try:
+        process = subprocess.run(["keepass2", f"{file['name']}",
+                                  f"-pw:{env['KEEPASS_DB_PWD']}"],
+                                 check=True,
+                                 stderr=subprocess.STDOUT,
+                                 stdout=subprocess.DEVNULL)
+    except subprocess.CalledProcessError as error:
+        raise exceptions.KeepassClosedWithErrors(
+            f"keepass closed with error(s).\nError :{error}")
 
 
 if __name__ == "__main__":
