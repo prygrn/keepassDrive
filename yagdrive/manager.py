@@ -8,40 +8,14 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 
+from yagdrive import errors
+
 # When the scope is changed, the self._token file shall be deleted
 # TODO : Be able to change the scope in runtime if the file does not exist
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 TOKEN_PATH = "./token.json"
 LOGGER = logging.getLogger(__name__)
-
-
-class SecretFileNotFound(Exception):
-    """
-    Raised when a client secret file is not found
-    """
-
-    pass
-
-
-class TokenFileInvalid(Exception):
-    """
-    Raised when a token file is invalid
-    """
-
-    pass
-
-
-class DriveIsEmpty(Exception):
-    """
-    Raised when the given Google Drive is empty
-    """
-
-
-class FileDownloadFailed(Exception):
-    """
-    Raised when a file has failed to be downloaded
-    """
 
 
 class GDrive:
@@ -63,8 +37,7 @@ class GDrive:
         # is created automatically when the authorization flow completes for
         # the first time.
         if Path(self._token).is_file():
-            LOGGER.info(
-                f"{str(self._token)} file exists. Get credentials from it.")
+            LOGGER.info(f"{str(self._token)} file exists. Get credentials from it.")
             try:
                 self._credentials = Credentials.from_authorized_user_file(
                     str(self._token), SCOPES
@@ -84,8 +57,7 @@ class GDrive:
                 self._credentials.refresh(Request())
             # No token at all
             else:
-                LOGGER.info(
-                    "Creating a new workflow as there are no token file")
+                LOGGER.info("Creating a new workflow as there are no token file")
                 # Check if there is any secret file to start the authentication
                 # workflow
                 try:
@@ -93,7 +65,7 @@ class GDrive:
                         str(self._secrets), SCOPES
                     )
                 except (FileNotFoundError, IsADirectoryError) as error:
-                    raise SecretFileNotFound("No secret file found")
+                    raise errors.SecretFileNotFoundError("No secret file found")
 
                 self._credentials = flow.run_local_server(port=0)
             # Save the token locally for the next run
@@ -102,7 +74,7 @@ class GDrive:
             LOGGER.info("Succeeded to write a new token file")
 
     def download_file(self, file):
-        file['is_downloaded'] = False
+        file["is_downloaded"] = False
 
         try:
             service = build("drive", "v3", credentials=self._credentials)
@@ -121,7 +93,7 @@ class GDrive:
         with open(file["name"], "wb") as fd:
             fd.write(binary.getvalue())
 
-        file['is_downloaded'] = True
+        file["is_downloaded"] = True
 
         return file
 
@@ -130,9 +102,11 @@ class GDrive:
         try:
             # Print out the 10 first files
             service = build("drive", "v3", credentials=self._credentials)
-            response = service.files().list(
-                pageSize=10, fields="nextPageToken, files(id, name)"
-            ).execute()
+            response = (
+                service.files()
+                .list(pageSize=10, fields="nextPageToken, files(id, name)")
+                .execute()
+            )
             self._files = response.get("files", [])
             LOGGER.info(f"Get the {10} first files as below")
             LOGGER.info("file id")
@@ -163,14 +137,18 @@ class GDrive:
         try:
             while True:
                 service = build("drive", "v3", credentials=self._credentials)
-                response = service.files().list(
-                    q=f"name='{name}'",
-                    spaces="drive",
-                    fields="nextPageToken, files(id, name)",
-                    pageToken=page_token
-                ).execute()
+                response = (
+                    service.files()
+                    .list(
+                        q=f"name='{name}'",
+                        spaces="drive",
+                        fields="nextPageToken, files(id, name)",
+                        pageToken=page_token,
+                    )
+                    .execute()
+                )
                 for file in response.get("files", []):
-                    if file['name'] == name:
+                    if file["name"] == name:
                         return file
 
                 files.extend(response.get("files", []))
