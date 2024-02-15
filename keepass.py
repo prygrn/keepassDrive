@@ -38,7 +38,7 @@ def download_file(filename: Path, secrets: Path):
 def start_keepass(filename: Path, password: str):
     try:
         process = subprocess.run(
-            ["keepass2", f"{filename}", f"-pw:{password}"],
+            ["keepass2", f'"{filename}"', f"-pw:{password}"],
             check=True,
             stderr=subprocess.STDOUT,
             stdout=subprocess.DEVNULL,
