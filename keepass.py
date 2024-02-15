@@ -14,6 +14,42 @@ ARGUMENTS_NB = 3
 LOGGER = logging.getLogger(__name__)
 
 
+def download_file(filename: Path, secrets: Path):
+    name = filename.name
+    drive = manager.GDrive(secrets_file=secrets)
+    file = drive.search_file_by_name(filename.name)
+    if file is not None:
+        LOGGER.info(
+            f"Start downloading the database {name} from the given Google Drive"
+        )
+        try:
+            file = drive.download_file(file)
+        except yagerrors.FileDownloadFailedError as error:
+            LOGGER.error(f"Downloading {filename.name} results in error")
+            return False
+    else:
+        LOGGER.error(f"No file named '{filename}' in the given Google Drive")
+        return False
+
+    LOGGER.info(f"Downloading {filename} succeed")
+    return True
+
+
+def start_keepass(filename: Path, password: str):
+    try:
+        process = subprocess.run(
+            ["keepass2", f"{filename}", f"-pw:{password}"],
+            check=True,
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.DEVNULL,
+        )
+    except subprocess.CalledProcessError as error:
+        raise errors.KeepassClosedWithError(
+            f"keepass closed with error(s).\nError :{error}"
+        )
+    return True
+
+
 def main():
     file = dict()
     process = None
@@ -36,44 +72,34 @@ def main():
         )
         raise errors.WrongNumberOfArgumentsError("Invalid number of arguments")
 
-    path_name = Path(sys.argv[1]).absolute()  # Create a Path object with absolute path
-    filename = path_name.name
-    drive = manager.GDrive(secrets_file=sys.argv[2])
-    file = drive.search_file_by_name(filename)
-    # file = drive.get_file_by_name(sys.argv[1])
-    if file is not None:
-        file = drive.download_file(file)
-        if not file["is_downloaded"]:
-            raise yagerrors.FileDownloadFailedError(
-                f"File {file} failed to be downloaded"
-            )
-    else:
-        raise yagerrors.NoFileNameError(f"File {filename} not found in the given Drive")
+    database = Path(Path(sys.argv[1]).absolute())
+    secrets = Path(sys.argv[2])
+    if not download_file(database, secrets):
+        return False
 
     # Create a copy of the database to be compared afterward
-    copy_path_name = Path(f"{path_name.stem}_copy.kdbx")
-    copy_path_name.write_bytes(path_name.read_bytes())
+    LOGGER.info(f"Creating a copy of {database}")
+    copy_path = Path(f"{database.stem}_copy.kdbx")
+    copy_path.write_bytes(database.read_bytes())
+    LOGGER.info(f"Copy of {database} created")
 
-    env = environ.copy()
     #  Execute the keepass app
-    try:
-        process = subprocess.run(
-            ["keepass2", f"{file['name']}", f"-pw:{env['KEEPASS_DB_PWD']}"],
-            check=True,
-            stderr=subprocess.STDOUT,
-            stdout=subprocess.DEVNULL,
-        )
-    except subprocess.CalledProcessError as error:
-        raise errors.KeepassClosedWithError(
-            f"keepass closed with error(s).\nError :{error}"
-        )
+    if start_keepass(database, environ.copy()["KEEPASS_DB_PWD"]):
+        return False
 
     # Now the user finished to interact with the app, we need to compare both files
-    if not filecmp.cmp(filename, copy_path_name.name):
-        print("Files seem to be different : something has been changed in the db")
+    if not filecmp.cmp(database.name, copy_path.name):
+        LOGGER.info("Files are different: something has been changed in the db")
     else:
-        print("Files seem to be the same")
+        LOGGER.info("No changed detected in the database. Nothing to be updated.")
+
+    return True
 
 
 if __name__ == "__main__":
-    main()
+    if main() == True:
+        LOGGER.info("Program ended successfully.")
+        exit(0)
+    else:
+        LOGGER.error("Program ended with failure(s).")
+        exit(1)

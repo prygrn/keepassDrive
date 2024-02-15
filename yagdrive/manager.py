@@ -88,8 +88,9 @@ class GDrive:
 
         except HttpError as error:
             LOGGER.exception(f"An Http Error occurred: {error}")
+            raise errors.FileDownloadFailedError(f"File {file} failed to be downloaded")
 
-        LOGGER.info(f"Save {file['name']} in progress")
+        # Write binary in the file
         with open(file["name"], "wb") as fd:
             fd.write(binary.getvalue())
 
@@ -130,7 +131,7 @@ class GDrive:
                 return file
         return
 
-    def search_file_by_name(self, name):
+    def search_file_by_name(self, name: str):
         file = dict()
         files = [dict]
         page_token = None
@@ -149,16 +150,21 @@ class GDrive:
                 )
                 for file in response.get("files", []):
                     if file["name"] == name:
+                        LOGGER.info(f"File {file['name']} founded - id = {file['id']}")
                         return file
 
                 files.extend(response.get("files", []))
                 page_token = response.get("nextPageToken", None)
                 if page_token is None:
-                    break
+                    LOGGER.error(f"File {name} not found in the given Drive")
+                    raise errors.NoFileNameError(
+                        f"File {name} not found in the given Drive"
+                    )
 
         except HttpError as error:
             print(f"An error occurred: {error}")
             file = None
+            raise errors.NoFileNameError(f"File {name} not found in the given Drive")
 
         # None if not found
         return file
