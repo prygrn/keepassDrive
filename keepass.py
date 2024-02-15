@@ -14,31 +14,10 @@ ARGUMENTS_NB = 3
 LOGGER = logging.getLogger(__name__)
 
 
-def download_file(filename: Path, secrets: Path):
-    name = filename.name
-    drive = manager.GDrive(secrets_file=secrets)
-    file = drive.search_file_by_name(filename.name)
-    if file is not None:
-        LOGGER.info(
-            f"Start downloading the database {name} from the given Google Drive"
-        )
-        try:
-            file = drive.download_file(file)
-        except yagerrors.FileDownloadFailedError as error:
-            LOGGER.error(f"Downloading {filename.name} results in error")
-            return False
-    else:
-        LOGGER.error(f"No file named '{filename}' in the given Google Drive")
-        return False
-
-    LOGGER.info(f"Downloading {filename} succeed")
-    return True
-
-
 def start_keepass(filename: Path, password: str):
     try:
         process = subprocess.run(
-            ["keepass2", f'"{filename}"', f"-pw:{password}"],
+            ["keepass2", f"{filename}", f"-pw:{password}"],
             check=True,
             stderr=subprocess.STDOUT,
             stdout=subprocess.DEVNULL,
@@ -50,8 +29,13 @@ def start_keepass(filename: Path, password: str):
     return True
 
 
+def upload_file(filename: Path):
+
+    return False
+
+
 def main():
-    file = dict()
+    dbfile = dict()
     process = None
     current_directory = Path.cwd()
 
@@ -72,10 +56,17 @@ def main():
         )
         raise errors.WrongNumberOfArgumentsError("Invalid number of arguments")
 
-    database = Path(Path(sys.argv[1]).absolute())
+    database = Path(sys.argv[1])
     secrets = Path(sys.argv[2])
-    if not download_file(database, secrets):
+    
+    drive = manager.GDrive(secrets_file=secrets)
+    dbfile = drive.search_file_by_name(database.name)
+    try:
+        dbfile = drive.download_file(dbfile)
+    except yagerrors.FileDownloadFailedError as error:
+        LOGGER.error(f"Downloading {dbfile['name']} results in error")
         return False
+    LOGGER.info(f"Downloading {dbfile['name']} succeed")
 
     # Create a copy of the database to be compared afterward
     LOGGER.info(f"Creating a copy of {database}")
@@ -84,12 +75,13 @@ def main():
     LOGGER.info(f"Copy of {database} created")
 
     #  Execute the keepass app
-    if start_keepass(database, environ.copy()["KEEPASS_DB_PWD"]):
+    if not start_keepass(database, environ.copy()["KEEPASS_DB_PWD"]):
         return False
 
     # Now the user finished to interact with the app, we need to compare both files
     if not filecmp.cmp(database.name, copy_path.name):
-        LOGGER.info("Files are different: something has been changed in the db")
+        LOGGER.info("Files are different. File will be updated")
+        drive.upload_file(dbfile)
     else:
         LOGGER.info("No changed detected in the database. Nothing to be updated.")
 

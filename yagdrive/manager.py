@@ -7,6 +7,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import MediaFileUpload
 
 from yagdrive import errors
 
@@ -74,8 +75,6 @@ class GDrive:
             LOGGER.info("Succeeded to write a new token file")
 
     def download_file(self, file):
-        file["is_downloaded"] = False
-
         try:
             service = build("drive", "v3", credentials=self._credentials)
             request = service.files().get_media(fileId=file["id"])
@@ -93,8 +92,6 @@ class GDrive:
         # Write binary in the file
         with open(file["name"], "wb") as fd:
             fd.write(binary.getvalue())
-
-        file["is_downloaded"] = True
 
         return file
 
@@ -167,4 +164,28 @@ class GDrive:
             raise errors.NoFileNameError(f"File {name} not found in the given Drive")
 
         # None if not found
+        return file
+
+    def upload_file(self, file):
+        uploaded_file = None
+        try:
+            service = build("drive", "v3", credentials=self._credentials)
+            file_metadata = {"name": file["name"]}
+            media = MediaFileUpload(file["name"], mimetype="application/octet-stream")
+            uploaded_file = (
+                service.files()
+                .update(
+                    body=file_metadata,
+                    media_body=media,
+                    fileId=file["id"],
+                    fields="id, name",
+                )
+                .execute()
+            )
+            LOGGER.info(
+                f"Uploaded file name {uploaded_file['name']} - id {uploaded_file['id']}"
+            )
+        except HttpError as error:
+            LOGGER.critical(f"Error during the update\n{error}")
+
         return file
