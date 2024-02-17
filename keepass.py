@@ -97,6 +97,10 @@ def main():
     else:
         LOGGER.info("No changed detected in the database. Nothing to be updated.")
 
+    # Remove all
+    database.unlink()
+    copy_path.unlink()
+
     return True
 
 
