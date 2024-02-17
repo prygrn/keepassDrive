@@ -26,6 +26,10 @@ def start_keepass(filename: Path, password: str):
         raise errors.KeepassClosedWithError(
             f"keepass closed with error(s).\nError :{error}"
         )
+    # Different than 0 meaning there was an error
+    if process.returncode:
+        return False
+
     return True
 
 
@@ -87,13 +91,24 @@ def main():
     LOGGER.info(f"Copy of {database} created")
 
     #  Execute the keepass app
-    if not start_keepass(database, environ.copy()["KEEPASS_DB_PWD"]):
-        return False
+    try:
+        if not start_keepass(database, environ.copy()["KEEPASS_DB_PWD"]):
+            LOGGER.error("An unknown error occurred about keepass")
+            return False
+    except errors.KeepassClosedWithError as keepass_error:
+        LOGGER.critical(keepass_error)
 
     # Now the user finished to interact with the app, we need to compare both files
     if not filecmp.cmp(database.name, copy_path.name):
         LOGGER.info("Files are different. File will be updated")
-        drive.upload_file(dbfile)
+        try:
+            if drive.upload_file(dbfile) == None:
+                LOGGER.error("An unknown error occurred during the update")
+                return False
+        except yagerrors.UpdateFileHttpError as update_error:
+            LOGGER.critical(f"Update error: {update_error}")
+            return False
+
     else:
         LOGGER.info("No changed detected in the database. Nothing to be updated.")
 

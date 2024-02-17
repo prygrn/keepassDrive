@@ -44,3 +44,11 @@ class SearchFileHttpError(Exception):
     """
 
     pass
+
+
+class UpdateFileHttpError(Exception):
+    """
+    Raised when an HTTP error is returned while updating a given file
+    """
+
+    pass

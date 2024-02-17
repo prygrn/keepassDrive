@@ -186,6 +186,7 @@ class GDrive:
                 f"Uploaded file name {uploaded_file['name']} - id {uploaded_file['id']}"
             )
         except HttpError as error:
-            LOGGER.critical(f"Error during the update\n{error}")
+            uploaded_file = None
+            raise errors.UpdateFileHttpError(error)
 
-        return file
+        return uploaded_file
