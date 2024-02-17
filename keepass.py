@@ -58,13 +58,25 @@ def main():
 
     database = Path(sys.argv[1])
     secrets = Path(sys.argv[2])
-    
+
+    # Create a Google Drive manager
     drive = manager.GDrive(secrets_file=secrets)
-    dbfile = drive.search_file_by_name(database.name)
+
+    # Search for the given database inside the Drive
+    try:
+        dbfile = drive.search_file_by_name(database.name)
+    except yagerrors.NoFileNameError as file_error:
+        LOGGER.critical(f"File error: {file_error}")
+        return False
+    except yagerrors.SearchFileHttpError as http_error:
+        LOGGER.critical(f"Http error: {http_error}")
+        return False
+
+    # Start the download
     try:
         dbfile = drive.download_file(dbfile)
-    except yagerrors.FileDownloadFailedError as error:
-        LOGGER.error(f"Downloading {dbfile['name']} results in error")
+    except yagerrors.FileDownloadFailedError as download_error:
+        LOGGER.error(f"Download error : {download_error}")
         return False
     LOGGER.info(f"Downloading {dbfile['name']} succeed")
 

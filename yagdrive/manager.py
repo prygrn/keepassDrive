@@ -159,9 +159,9 @@ class GDrive:
                     )
 
         except HttpError as error:
-            print(f"An error occurred: {error}")
+            LOGGER.critical(error)
             file = None
-            raise errors.NoFileNameError(f"File {name} not found in the given Drive")
+            raise errors.SearchFileHttpError(error)
 
         # None if not found
         return file
