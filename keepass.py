@@ -101,6 +101,7 @@ def main():
     if not filecmp.cmp(database.name, copy_path.name):
         LOGGER.info("Files are different. File will be updated")
         try:
+            # TODO We must verify that the token is still valid before updating anything
             if drive.upload_file(dbfile) == None:
                 LOGGER.error("An unknown error occurred during the update")
                 return False
