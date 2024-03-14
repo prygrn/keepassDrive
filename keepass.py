@@ -1,15 +1,15 @@
 import sys
+import json
 import logging
 import subprocess
 import filecmp
-from os import environ
 from pathlib import Path
 
 from yagdrive import manager
 from yagdrive import errors as yagerrors
 import errors
 
-ARGUMENTS_NB = 3
+ARGUMENTS_NB = 2
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,11 +33,6 @@ def start_keepass(filename: Path, password: str):
     return True
 
 
-def upload_file(filename: Path):
-
-    return False
-
-
 def main():
     dbfile = dict()
     process = None
@@ -55,13 +50,17 @@ def main():
     if len(sys.argv) != ARGUMENTS_NB:
         LOGGER.critical(
             """This tool requires the following arguments:
-                     - The name of the keepass database to be opened
-                     - The path/to/the/secrets/file"""
+                     - A JSON file giving input data
+            """
         )
         raise errors.WrongNumberOfArgumentsError("Invalid number of arguments")
 
-    database = Path(sys.argv[1])
-    secrets = Path(sys.argv[2])
+    configuration_file = Path(sys.argv[1])
+    # Read this configuration file
+    with open(configuration_file) as f:
+        configurations = json.load(f)
+    database = Path(configurations["file"]["name"])
+    secrets = Path(configurations["client"]["secrets_location"])
 
     # Create a Google Drive manager
     drive = manager.GDrive(secrets_file=secrets)
@@ -92,7 +91,7 @@ def main():
 
     #  Execute the keepass app
     try:
-        if not start_keepass(database, environ.copy()["KEEPASS_DB_PWD"]):
+        if not start_keepass(database, configurations["file"]["password"]):
             LOGGER.error("An unknown error occurred about keepass")
             return False
     except errors.KeepassClosedWithError as keepass_error:
