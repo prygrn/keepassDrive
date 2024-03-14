@@ -3,8 +3,7 @@
 This tool automatically downloads your keepass database from your Google Drive and opens it to be ready to be consulted.
 When exiting, it will check if there is any differences between the remote and the local ones. If any, it will upload the local to the remote to be up-to-date.
 
-**Be warned that this tool uses some environment variables such as your db password and Google OAuth client secret in argument.**
-**In the next releases, these information would be filled from a configuration json file, which could be more secured (to be verified)**
+**Be warned that this tool uses some configuration files that stores your db name/password and Google OAuth client secret local location.**
 
 ## Prerequisites
 
@@ -34,4 +33,4 @@ When exiting, it will check if there is any differences between the remote and t
 
 ## Improvements
 
-1. Potentially access the KEEPASS_DB_PWD from another source (configuration file ?) ==> Check the securer way.
+1. TODO's are hidden in the files!
