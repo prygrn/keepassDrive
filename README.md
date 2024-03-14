@@ -15,10 +15,21 @@ When exiting, it will check if there is any differences between the remote and t
 ## Installation
 
 1. Clone this repository
-2. Setup your database path and password into the following environment variables
-    * `KEEPASS_DB_PWD` i.e. `echo "export KEEPASS_DB_PWD=<your_db_pwd> >> .bashrc"`
-    * Source the file `source ~/.bashrc`
-3. You can now give it a try to the following command line:
+2. Create a secret configuration file that store credentials with the following scheme:
+
+```json
+{
+  "file": {
+    "name": "databasename.kdbx",
+    "password": "unencryptedpassword"
+  },
+  "client": {
+    "secrets_location": "secrets.json"
+  }
+}
+```
+
+1. You can now give it a try to the following command line:
     ```python3 keepass.py <your_database_name> <your_client_secrets_json_file>```
 
 ## Improvements
