@@ -5,6 +5,7 @@ import subprocess
 import filecmp
 from pathlib import Path
 
+from yagdrive.authentication import Authenticator
 from yagdrive.download import Downloader
 from yagdrive.search import Searcher
 from yagdrive.upload import Uploader
@@ -65,6 +66,7 @@ def main():
     secrets = Path(configurations["client"]["secrets_location"])
 
     # Create some Google YagDrive objects
+    authenticator = Authenticator(secrets_file=secrets)
     searcher = Searcher()
     downloader = Downloader()
     uploader = Uploader()
