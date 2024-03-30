@@ -6,9 +6,9 @@ import filecmp
 from pathlib import Path
 
 from yagdrive.yagdrive import YagDrive
+from yagdrive.download import Downloader
+from yagdrive.upload import Uploader
 from yagdrive import errors as yagerrors
-from yagdrive.downloader import Downloader
-from yagdrive.uploader import Uploader
 import errors
 
 ARGUMENTS_NB = 2

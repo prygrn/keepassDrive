@@ -10,7 +10,7 @@ from googleapiclient.errors import HttpError
 
 from yagdrive import constants
 from yagdrive import errors
-from yagdrive import uploader
+from yagdrive import upload
 
 
 LOGGER = logging.getLogger(__name__)
