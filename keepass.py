@@ -7,6 +7,7 @@ from pathlib import Path
 
 from yagdrive.yagdrive import YagDrive
 from yagdrive import errors as yagerrors
+from yagdrive.downloader import Downloader
 from yagdrive.uploader import Uploader
 import errors
 
@@ -65,6 +66,7 @@ def main():
 
     # Create some Google YagDrive objects
     drive = YagDrive(secrets_file=secrets)
+    downloader = Downloader()
     uploader = Uploader()
 
     # Search for the given database inside the Drive
@@ -79,7 +81,7 @@ def main():
 
     # Start the download
     try:
-        dbfile = drive.download_file(dbfile)
+        dbfile = downloader.pull_file(dbfile)
     except yagerrors.FileDownloadFailedError as download_error:
         LOGGER.error(f"Download error : {download_error}")
         return False
@@ -104,7 +106,7 @@ def main():
         LOGGER.info("Files are different. File will be updated")
         try:
             # TODO We must verify that the token is still valid before updating anything
-            if uploader.get_file(dbfile) == None:
+            if uploader.push_file(dbfile) == None:
                 LOGGER.error("An unknown error occurred during the update")
                 return False
         except yagerrors.UpdateFileHttpError as update_error:

@@ -1,12 +1,12 @@
 import logging
-import io
+
 from pathlib import Path
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseDownload
+
 
 from yagdrive import constants
 from yagdrive import errors
@@ -63,27 +63,6 @@ class YagDrive:
             with open(str(self._token), "w") as token:
                 token.write(self._credentials.to_json())
             LOGGER.info("Succeeded to write a new token file")
-
-    def download_file(self, file):
-        try:
-            service = build("drive", "v3", credentials=self._credentials)
-            request = service.files().get_media(fileId=file["id"])
-            binary = io.BytesIO()
-            downloader = MediaIoBaseDownload(binary, request)
-            done = False
-            while done is False:
-                status, done = downloader.next_chunk()
-            LOGGER.info(f"{file['name']} successfully downloaded")
-
-        except HttpError as error:
-            LOGGER.exception(f"An Http Error occurred: {error}")
-            raise errors.FileDownloadFailedError(f"File {file} failed to be downloaded")
-
-        # Write binary in the file
-        with open(file["name"], "wb") as fd:
-            fd.write(binary.getvalue())
-
-        return file
 
     def list_files(self):
         # TODO : Using pageToken and also using pageSize token in argument
