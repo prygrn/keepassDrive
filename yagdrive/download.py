@@ -14,7 +14,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Downloader:
-    def pull_file(self, file):
+    def get_file(self, file):
         if not Path(constants.TOKEN_PATH).is_file():
             raise errors.TokenFileInvalidError(
                 "Token file is not found in the project root directory"

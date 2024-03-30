@@ -5,8 +5,8 @@ import subprocess
 import filecmp
 from pathlib import Path
 
-from yagdrive.yagdrive import YagDrive
 from yagdrive.download import Downloader
+from yagdrive.search import Searcher
 from yagdrive.upload import Uploader
 from yagdrive import errors as yagerrors
 import errors
@@ -65,13 +65,13 @@ def main():
     secrets = Path(configurations["client"]["secrets_location"])
 
     # Create some Google YagDrive objects
-    drive = YagDrive(secrets_file=secrets)
+    searcher = Searcher()
     downloader = Downloader()
     uploader = Uploader()
 
     # Search for the given database inside the Drive
     try:
-        dbfile = drive.search_file_by_name(database.name)
+        dbfile = searcher.file_by_name(database.name)
     except yagerrors.NoFileNameError as file_error:
         LOGGER.critical(f"File error: {file_error}")
         return False
@@ -81,7 +81,7 @@ def main():
 
     # Start the download
     try:
-        dbfile = downloader.pull_file(dbfile)
+        dbfile = downloader.get_file(dbfile)
     except yagerrors.FileDownloadFailedError as download_error:
         LOGGER.error(f"Download error : {download_error}")
         return False
