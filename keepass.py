@@ -5,8 +5,9 @@ import subprocess
 import filecmp
 from pathlib import Path
 
-from yagdrive import manager
+from yagdrive.yagdrive import YagDrive
 from yagdrive import errors as yagerrors
+from yagdrive.uploader import Uploader
 import errors
 
 ARGUMENTS_NB = 2
@@ -17,7 +18,7 @@ LOGGER = logging.getLogger(__name__)
 def start_keepass(filename: Path, password: str):
     try:
         process = subprocess.run(
-            ["keepass2", f"{filename}", f"-pw:{password}"],
+            ["keepass2", f"{filename}", f"-pw:{password}", "&"],
             check=True,
             stderr=subprocess.STDOUT,
             stdout=subprocess.DEVNULL,
@@ -62,8 +63,9 @@ def main():
     database = Path(configurations["file"]["name"])
     secrets = Path(configurations["client"]["secrets_location"])
 
-    # Create a Google Drive manager
-    drive = manager.GDrive(secrets_file=secrets)
+    # Create some Google YagDrive objects
+    drive = YagDrive(secrets_file=secrets)
+    uploader = Uploader()
 
     # Search for the given database inside the Drive
     try:
@@ -102,7 +104,7 @@ def main():
         LOGGER.info("Files are different. File will be updated")
         try:
             # TODO We must verify that the token is still valid before updating anything
-            if drive.upload_file(dbfile) == None:
+            if uploader.get_file(dbfile) == None:
                 LOGGER.error("An unknown error occurred during the update")
                 return False
         except yagerrors.UpdateFileHttpError as update_error:

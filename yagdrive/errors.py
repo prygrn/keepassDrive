@@ -14,6 +14,14 @@ class TokenFileInvalidError(Exception):
     pass
 
 
+class TokenFileNotFoundError(Exception):
+    """
+    Raised when a token file is not found
+    """
+
+    pass
+
+
 class DriveIsEmptyError(Exception):
     """
     Raised when the given Google Drive is empty
@@ -49,6 +57,14 @@ class SearchFileHttpError(Exception):
 class UpdateFileHttpError(Exception):
     """
     Raised when an HTTP error is returned while updating a given file
+    """
+
+    pass
+
+
+class NoUploaderFindError(Exception):
+    """
+    Raised when the Uploader class has not been correctly constructed
     """
 
     pass

@@ -7,33 +7,23 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
-from googleapiclient.http import MediaFileUpload
 
+from yagdrive import constants
 from yagdrive import errors
+from yagdrive import uploader
 
-# When the scope is changed, the self._token file shall be deleted
-# TODO : Be able to change the scope in runtime if the file does not exist
-SCOPES = ["https://www.googleapis.com/auth/drive"]
 
-TOKEN_PATH = "./token.json"
 LOGGER = logging.getLogger(__name__)
 
 
-class GDrive:
-    _secrets = Path()
-    _token = Path(TOKEN_PATH)
+class YagDrive:
+    _token = Path(constants.TOKEN_PATH)
     _credentials = None
-    _files = list(dict())
+    _files: list
 
     def __init__(self, secrets_file=None) -> None:
-        logging.basicConfig(
-            format="%(asctime)s - %(levelname)s - %(message)s",
-            datefmt="%d/%m/%Y %H:%M:%S",
-            level=logging.INFO,
-        )
+        _token = Path(constants.TOKEN_PATH)
 
-        if secrets_file is not None:
-            self._secrets = Path(secrets_file)
         # The file self._token stores the user's access and refresh tokens and
         # is created automatically when the authorization flow completes for
         # the first time.
@@ -41,9 +31,9 @@ class GDrive:
             LOGGER.info(f"{str(self._token)} file exists. Get credentials from it.")
             try:
                 self._credentials = Credentials.from_authorized_user_file(
-                    str(self._token), SCOPES
+                    str(self._token), constants.SCOPES
                 )
-            except ValueError as error:
+            except ValueError:
                 self._credentials = None  # Let the user log in again
 
         # If there are no (valid) self._credentials, let the user log in
@@ -63,9 +53,9 @@ class GDrive:
                 # workflow
                 try:
                     flow = InstalledAppFlow.from_client_secrets_file(
-                        str(self._secrets), SCOPES
+                        str(secrets_file), constants.SCOPES
                     )
-                except (FileNotFoundError, IsADirectoryError) as error:
+                except (FileNotFoundError, IsADirectoryError):
                     raise errors.SecretFileNotFoundError("No secret file found")
 
                 self._credentials = flow.run_local_server(port=0)
@@ -165,28 +155,3 @@ class GDrive:
 
         # None if not found
         return file
-
-    def upload_file(self, file):
-        uploaded_file = None
-        try:
-            service = build("drive", "v3", credentials=self._credentials)
-            file_metadata = {"name": file["name"]}
-            media = MediaFileUpload(file["name"], mimetype="application/octet-stream")
-            uploaded_file = (
-                service.files()
-                .update(
-                    body=file_metadata,
-                    media_body=media,
-                    fileId=file["id"],
-                    fields="id, name",
-                )
-                .execute()
-            )
-            LOGGER.info(
-                f"Uploaded file name {uploaded_file['name']} - id {uploaded_file['id']}"
-            )
-        except HttpError as error:
-            uploaded_file = None
-            raise errors.UpdateFileHttpError(error)
-
-        return uploaded_file
