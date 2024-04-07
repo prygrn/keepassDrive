@@ -67,9 +67,9 @@ def main():
 
     # Create some Google YagDrive objects
     authenticator = Authenticator(secrets_file=secrets)
-    searcher = Searcher()
-    downloader = Downloader()
-    uploader = Uploader()
+    searcher = Searcher(authenticator)
+    downloader = Downloader(authenticator)
+    uploader = Uploader(authenticator)
 
     # Search for the given database inside the Drive
     try:

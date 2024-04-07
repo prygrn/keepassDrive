@@ -1,33 +1,29 @@
 import logging
 from pathlib import Path
 
-from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 
 from yagdrive import errors
 from yagdrive import constants
+from yagdrive import authentication
 
 LOGGER = logging.getLogger(__name__)
 
 
 class Uploader:
-    def push_file(self, file):
-        if not Path(constants.TOKEN_PATH).is_file():
-            raise errors.TokenFileInvalidError(
-                "Token file is not found in the project root directory"
-            )
-        try:
-            credentials = Credentials.from_authorized_user_file(
-                str(constants.TOKEN_PATH), constants.SCOPES
-            )
-        except ValueError:
-            raise errors.TokenFileInvalidError("Invalid token found")
+    _authenticator = authentication.Authenticator
 
+    def __init__(self, authenticator):
+        self._authenticator = authenticator
+
+    def push_file(self, file):
         uploaded_file = None
         try:
-            service = build("drive", "v3", credentials=credentials)
+            service = build(
+                "drive", "v3", credentials=self._authenticator.get_credentials()
+            )
             file_metadata = {"name": file["name"]}
             media = MediaFileUpload(file["name"], mimetype="application/octet-stream")
             uploaded_file = (

@@ -57,3 +57,6 @@ class Authenticator:
             with open(str(self._token), "w") as token:
                 token.write(self._credentials.to_json())
             LOGGER.info("Succeeded to write a new token file")
+
+    def get_credentials(self):
+        return self._credentials
